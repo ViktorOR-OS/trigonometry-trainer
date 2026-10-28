@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f4f7fb">
+<title>Тренажер формул тригонометрії</title>
+<style>
+:root{--bg:#f4f7fb;--panel:#fff;--ink:#17243a;--muted:#65738a;--line:#dce4ef;--accent:#315fe8;--good:#147d48;--goodbg:#e8f7ef;--bad:#b42335;--badbg:#fff0f1}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+main{max-width:760px;margin:0 auto;padding:18px 14px 32px}
+header{margin:0 0 16px}
+h1{font-size:clamp(1.45rem,4vw,2rem);line-height:1.2;margin:0 0 6px}
+p{margin:0}
+.muted{color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;margin:12px 0;box-shadow:0 4px 16px #20365a0a}
+.settings{display:flex;gap:12px;align-items:end;flex-wrap:wrap}
+.field{display:flex;flex-direction:column;gap:5px;flex:1;min-width:145px}
+label{font-weight:700;font-size:.92rem}
+select,button{font:inherit;border:1px solid var(--line);border-radius:10px;padding:11px 12px;background:white;color:var(--ink)}
+button{cursor:pointer;font-weight:700;touch-action:manipulation}
+button:focus-visible,select:focus-visible{outline:3px solid #9db5ff;outline-offset:2px}
+.primary{background:var(--accent);border-color:var(--accent);color:white}
+button:disabled{opacity:.55;cursor:not-allowed}
+.hidden{display:none!important}
+.topline{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-weight:700}
+.track{height:7px;background:#e9eef6;border-radius:99px;overflow:hidden;margin:10px 0 14px}
+.fill{height:100%;width:0;background:var(--accent);transition:width .2s}
+.question{font-size:1.08rem;font-weight:800;margin:0 0 2px}
+.hint{color:var(--muted);margin:0 0 2px}
+.diagram{display:block;width:100%;max-width:360px;height:auto;max-height:235px;margin:0 auto}
+.answers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:8px}
+.answer{min-height:52px;text-align:left;display:flex;align-items:center;gap:10px;line-height:1.3}
+.letter{display:grid;place-items:center;flex:0 0 28px;width:28px;height:28px;border-radius:7px;background:#f0f3f9;font-weight:800}
+.answer.correct{background:var(--goodbg);border-color:var(--good)}
+.answer.wrong{background:var(--badbg);border-color:var(--bad)}
+.answer.correct .letter{background:var(--good);color:white}
+.feedback{padding:12px 13px;border-radius:11px;margin-top:12px;font-weight:700}
+.feedback.good{background:var(--goodbg);color:var(--good)}
+.feedback.bad{background:var(--badbg);color:var(--bad)}
+.explain{display:block;font-weight:500;margin-top:5px}
+.actions{display:flex;justify-content:flex-end;gap:10px;margin-top:14px}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:18px 0}
+.stat{background:#f7f9fd;border:1px solid var(--line);border-radius:10px;padding:12px;text-align:center}
+.stat strong{display:block;font-size:1.35rem}
+.stat span{font-size:.82rem;color:var(--muted)}
+.score{text-align:center;color:var(--accent);font-size:clamp(2rem,8vw,3.5rem);font-weight:900;margin:12px 0}
+@media(max-width:480px){
+ main{padding:14px 9px 24px}
+ .panel{padding:13px;border-radius:13px}
+ .answers{grid-template-columns:1fr;gap:8px}
+ .answer{min-height:48px}
+ .diagram{max-width:300px;max-height:190px}
+ .stats{grid-template-columns:1fr}
+ .stat{display:flex;justify-content:space-between;align-items:center;text-align:left;padding:9px 12px}
+ .stat strong{font-size:1.1rem}
+ .actions button{width:100%}
+}
+</style>
+</head>
+<body>
+<main>
+<header>
+<h1>Тренажер формул тригонометрії</h1>
+<p class="muted">Подивіться на прямокутний трикутник і виберіть формулу для знаходження x.</p>
+</header>
+
+<section class="panel" id="setup">
+ <div class="settings">
+  <div class="field">
+   <label for="count">Кількість завдань</label>
+   <select id="count"><option>5</option><option selected>10</option><option>15</option><option>20</option><option>30</option></select>
+  </div>
+  <button class="primary" id="start">Почати тренування</button>
+ </div>
+</section>
+
+<section class="panel hidden" id="quiz" aria-live="polite">
+ <div class="topline"><span id="progress">Завдання 1 із 10</span><span class="muted" id="runningScore">Правильних відповідей: 0</span></div>
+ <div class="track"><div class="fill" id="fill"></div></div>
+ <p class="question">Яка формула допоможе знайти сторону x?</p>
+ <p class="hint">Виберіть одну відповідь.</p>
+ <svg id="diagram" class="diagram" viewBox="0 0 320 220" role="img" aria-label="Прямокутний трикутник із позначеннями m, x та альфа"></svg>
+ <div class="answers" id="answers"></div>
+ <div class="feedback hidden" id="feedback" role="status"></div>
+ <div class="actions"><button class="primary" id="next" disabled>Наступне завдання →</button></div>
+</section>
+
+<section class="panel hidden" id="results" aria-live="polite">
+ <div style="text-align:center">
+  <p class="muted">Тренування завершено</p>
+  <h2>Результат</h2>
+  <div class="score" id="score">7 із 10</div>
+  <p id="resultSentence">Ви правильно вибрали 7 із 10 формул.</p>
+  <div class="stats">
+   <div class="stat"><span>Правильні відповіді</span><strong id="correctStat">7</strong></div>
+   <div class="stat"><span>Помилки</span><strong id="wrongStat">3</strong></div>
+   <div class="stat"><span>Точність</span><strong id="percentStat">70%</strong></div>
+  </div>
+  <button class="primary" id="again">Пройти ще раз</button>
+ </div>
+</section>
+</main>
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+const tasks=[
+ {m:'opp',x:'hyp',formula:'x = m / sin(α)'},
+ {m:'hyp',x:'opp',formula:'x = m · sin(α)'},
+ {m:'adj',x:'hyp',formula:'x = m / cos(α)'},
+ {m:'hyp',x:'adj',formula:'x = m · cos(α)'},
+ {m:'adj',x:'opp',formula:'x = m · tan(α)'},
+ {m:'opp',x:'adj',formula:'x = m / tan(α)'}
+];
+const allFormulas=tasks.map(t=>t.formula);
+const labels={opp:'протилежний катет',adj:'прилеглий катет',hyp:'гіпотенуза'};
+let queue=[],idx=0,correct=0,answered=false;
+const shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+function draw(t){
+ const svg=$('diagram');
+ // Базовий трикутник, який щоразу повертаємо або віддзеркалюємо в межах полотна.
+ const base={A:{x:65,y:175},B:{x:255,y:175},C:{x:255,y:48}};
+ const variants=[
+  {rot:0,flip:false},{rot:90,flip:false},{rot:180,flip:false},{rot:270,flip:false},
+  {rot:0,flip:true},{rot:90,flip:true},{rot:180,flip:true},{rot:270,flip:true}
+ ];
+ const v=variants[Math.floor(Math.random()*variants.length)];
+ const cx=160,cy=112,scale=.78;
+ const transform=p=>{
+  let x=(p.x-cx)*scale,y=(p.y-cy)*scale;
+  if(v.flip)x=-x;
+  const a=v.rot*Math.PI/180;
+  return {x:cx+x*Math.cos(a)-y*Math.sin(a),y:cy+x*Math.sin(a)+y*Math.cos(a)};
+ };
+ const P={A:transform(base.A),B:transform(base.B),C:transform(base.C)};
+ // Для зручного відображення вписуємо трикутник у поле малювання.
+ const vals=Object.values(P),minX=Math.min(...vals.map(p=>p.x)),maxX=Math.max(...vals.map(p=>p.x)),minY=Math.min(...vals.map(p=>p.y)),maxY=Math.max(...vals.map(p=>p.y));
+ const dx=160-(minX+maxX)/2,dy=110-(minY+maxY)/2;
+ Object.values(P).forEach(p=>{p.x+=dx;p.y+=dy;});
+ const sidePoints={hyp:[P.A,P.C],opp:[P.B,P.C],adj:[P.A,P.B]};
+ const mid=s=>{const [u,w]=sidePoints[s];return {x:(u.x+w.x)/2,y:(u.y+w.y)/2};};
+ const centroid={x:(P.A.x+P.B.x+P.C.x)/3,y:(P.A.y+P.B.y+P.C.y)/3};
+ const sideText=s=>{
+  const p=mid(s),vx=p.x-centroid.x,vy=p.y-centroid.y,len=Math.hypot(vx,vy)||1;
+  const x=p.x+vx/len*13,y=p.y+vy/len*13+6;
+  return `<text x="${x}" y="${y}" text-anchor="middle" font-size="19" font-weight="800" fill="#17243a" stroke="#ffffff" stroke-width="5" paint-order="stroke">${s===t.m?'m':s===t.x?'x':''}</text>`;
+ };
+ // Прямий кут — у вершині B; позначку будуємо вздовж обох катетів.
+ const unit=(from,to)=>{const d=Math.hypot(to.x-from.x,to.y-from.y);return {x:(to.x-from.x)/d,y:(to.y-from.y)/d};};
+ const u=unit(P.B,P.A),w=unit(P.B,P.C),k=17;
+ const r1={x:P.B.x+u.x*k,y:P.B.y+u.y*k},r2={x:r1.x+w.x*k,y:r1.y+w.y*k},r3={x:P.B.x+w.x*k,y:P.B.y+w.y*k};
+ // Альфа — гострий кут у вершині A; дуга між напрямками до B та C.
+ const ua=unit(P.A,P.B),wa=unit(P.A,P.C),rad=24;
+ const a1={x:P.A.x+ua.x*rad,y:P.A.y+ua.y*rad},a2={x:P.A.x+wa.x*rad,y:P.A.y+wa.y*rad};
+ const cross=ua.x*wa.y-ua.y*wa.x, sweep=cross>=0?1:0;
+ const alphaPos={x:P.A.x+(ua.x+wa.x)*16,y:P.A.y+(ua.y+wa.y)*16};
+ svg.innerHTML=`
+ <polygon points="${P.A.x},${P.A.y} ${P.B.x},${P.B.y} ${P.C.x},${P.C.y}" fill="#eaf0ff" stroke="#315fe8" stroke-width="3" stroke-linejoin="round"/>
+ <path d="M ${r1.x} ${r1.y} L ${r2.x} ${r2.y} L ${r3.x} ${r3.y}" fill="none" stroke="#17243a" stroke-width="2"/>
+ <path d="M ${a1.x} ${a1.y} A ${rad} ${rad} 0 0 ${sweep} ${a2.x} ${a2.y}" fill="none" stroke="#315fe8" stroke-width="2.5"/>
+ <text x="${alphaPos.x}" y="${alphaPos.y+6}" text-anchor="middle" font-size="20" font-weight="800" fill="#315fe8" stroke="#ffffff" stroke-width="4" paint-order="stroke">α</text>
+ ${sideText('hyp')}${sideText('opp')}${sideText('adj')}`;
+}
+function start(){
+ const n=Number($('count').value);
+ queue=Array.from({length:n},()=>{const t=tasks[Math.floor(Math.random()*tasks.length)];return {...t};});
+ idx=0;correct=0;
+ $('setup').classList.add('hidden');$('results').classList.add('hidden');$('quiz').classList.remove('hidden');
+ show();
+}
+function show(){
+ answered=false;const t=queue[idx];
+ $('progress').textContent=`Завдання ${idx+1} із ${queue.length}`;
+ $('runningScore').textContent=`Правильних відповідей: ${correct}`;
+ $('fill').style.width=`${idx/queue.length*100}%`;
+ $('feedback').className='feedback hidden';$('feedback').textContent='';
+ $('next').disabled=true;$('next').textContent=idx===queue.length-1?'Показати результат':'Наступне завдання →';
+ draw(t);
+ const opts=shuffle(allFormulas);
+ const letters=['А','Б','В','Г','Д','Е'];
+ $('answers').innerHTML='';
+ opts.forEach((f,i)=>{
+  const b=document.createElement('button');b.className='answer';
+  b.innerHTML=`<span class="letter">${letters[i]}</span><span>${f}</span>`;
+  b.addEventListener('click',()=>choose(f,b));$('answers').appendChild(b);
+ });
+}
+function choose(value,button){
+ if(answered)return;answered=true;
+ const t=queue[idx],ok=value===t.formula;if(ok)correct++;
+ [...$('answers').children].forEach(b=>{
+  b.disabled=true;
+  if(b.querySelector('span:last-child').textContent===t.formula)b.classList.add('correct');
+ });
+ if(!ok)button.classList.add('wrong');
+ const fb=$('feedback');fb.className=`feedback ${ok?'good':'bad'}`;
+ fb.innerHTML=(ok?'Правильно!':'Не зовсім. Правильна формула: <strong>'+t.formula+'</strong>.')+
+ `<span class="explain">m — ${labels[t.m]}, x — ${labels[t.x]}.</span>`;
+ $('runningScore').textContent=`Правильних відповідей: ${correct}`;
+ $('fill').style.width=`${(idx+1)/queue.length*100}%`;$('next').disabled=false;
+}
+function finish(){
+ $('quiz').classList.add('hidden');$('results').classList.remove('hidden');
+ const n=queue.length,p=Math.round(correct/n*100);
+ $('score').textContent=`${correct} із ${n}`;
+ $('resultSentence').textContent=`Ви правильно вибрали ${correct} із ${n} формул.`;
+ $('correctStat').textContent=correct;$('wrongStat').textContent=n-correct;$('percentStat').textContent=p+'%';
+}
+$('start').addEventListener('click',start);
+$('next').addEventListener('click',()=>{if(!answered)return;if(idx<queue.length-1){idx++;show();}else finish();});
+$('again').addEventListener('click',()=>{$('results').classList.add('hidden');$('setup').classList.remove('hidden');});
+})();
+</script>
+</body>
+</html>
