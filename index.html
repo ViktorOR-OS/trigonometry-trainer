@@ -46,6 +46,7 @@ button:disabled{opacity:.55;cursor:not-allowed}
 .stat strong{display:block;font-size:1.35rem}
 .stat span{font-size:.82rem;color:var(--muted)}
 .score{text-align:center;color:var(--accent);font-size:clamp(2rem,8vw,3.5rem);font-weight:900;margin:12px 0}
+.counter-note{text-align:center;color:var(--muted);font-size:.8rem;margin:14px 0 0;min-height:1em}
 @media(max-width:480px){
  main{padding:14px 9px 24px}
  .panel{padding:13px;border-radius:13px}
@@ -101,6 +102,7 @@ button:disabled{opacity:.55;cursor:not-allowed}
   <button class="primary" id="again">Пройти ще раз</button>
  </div>
 </section>
+<p class="counter-note" id="counter-note" aria-live="polite"></p>
 </main>
 <script>
 (()=>{
@@ -210,6 +212,77 @@ function finish(){
 $('start').addEventListener('click',start);
 $('next').addEventListener('click',()=>{if(!answered)return;if(idx<queue.length-1){idx++;show();}else finish();});
 $('again').addEventListener('click',()=>{$('results').classList.add('hidden');$('setup').classList.remove('hidden');});
+
+/* ------------------------------------------------------------------
+   ЛІЧИЛЬНИК ЗАПУСКІВ
+   GitHub Pages не вміє писати у файли репозиторію — тому лічильник
+   бере дані із зовнішнього безкоштовного сервісу (без ключів).
+   Щоб ВИМКНУТИ лічильник — поставте COUNTER_ENABLED = false.
+   Щоб ЗМІНИТИ назву (щоб мати свій лічильник) — задайте свій namespace.
+   ------------------------------------------------------------------ */
+const COUNTER_ENABLED = true;
+const COUNTER_NAMESPACE = "oroses-trig-formulas-v1";   // унікальний ключ проєкту
+const COUNTER_KEY = "launches";
+
+// Рівень 1: онлайн-лічильник (Abacus). /hit/ — збільшує на 1 і повертає
+// нове число; /get/ — лише читає.
+const COUNTER_HIT = `https://abacus.jasoncameron.dev/hit/${COUNTER_NAMESPACE}/${COUNTER_KEY}`;
+const COUNTER_GET = `https://abacus.jasoncameron.dev/get/${COUNTER_NAMESPACE}/${COUNTER_KEY}`;
+
+// Рівень 2: локальний резерв. Працює навіть якщо сервіс мертвий або офлайн.
+const LOCAL_COUNT_KEY = "trig-formulas-local-launches";
+
+// Захист від подвійного зарахування одного відкриття (F5 / навігація).
+const COUNTER_SESSION_KEY = "trig-formulas-counted";
+
+function readLocalCount(){
+ try{ const v=parseInt(localStorage.getItem(LOCAL_COUNT_KEY)||"0",10); return Number.isFinite(v)?v:0; }
+ catch(e){ return 0; }
+}
+function bumpLocalCount(){
+ try{ const n=readLocalCount()+1; localStorage.setItem(LOCAL_COUNT_KEY,String(n)); return n; }
+ catch(e){ return 0; }
+}
+async function fetchOnlineCounter(alreadyCounted){
+ const url=alreadyCounted?COUNTER_GET:COUNTER_HIT;
+ const controller=new AbortController();
+ const timer=setTimeout(()=>controller.abort(),6000);   // не чекаємо довше 6 с
+ try{
+  const res=await fetch(url,{cache:"no-store",signal:controller.signal});
+  if(!res.ok) throw new Error("bad status "+res.status);
+  const data=await res.json();
+  const n=data&&data.value;
+  if(typeof n!=="number") throw new Error("no count field");
+  return n;
+ } finally { clearTimeout(timer); }
+}
+async function bumpCounter(){
+ if(!COUNTER_ENABLED) return;
+ const note=document.getElementById("counter-note");
+ if(!note) return;
+
+ let alreadyCounted=false;
+ try{ alreadyCounted=sessionStorage.getItem(COUNTER_SESSION_KEY)==="1"; }catch(e){}
+
+ // Локальний резерв рахуємо завжди — він ніколи не підводить.
+ const localN=alreadyCounted?readLocalCount():bumpLocalCount();
+
+ try{
+  const onlineN=await fetchOnlineCounter(alreadyCounted);
+  if(!alreadyCounted){ try{ sessionStorage.setItem(COUNTER_SESSION_KEY,"1"); }catch(e){} }
+  // Показуємо більше з двох: онлайн-лічильник зазвичай більший,
+  // бо враховує всіх відвідувачів.
+  const shown=Math.max(onlineN,localN);
+  note.textContent=`Тренажер відкрито ${shown.toLocaleString("uk-UA")} разів.`;
+ }catch(e){
+  // Онлайн недоступний? Показуємо локальне число і чесно про це пишемо.
+  try{ sessionStorage.setItem(COUNTER_SESSION_KEY,"1"); }catch(e2){}
+  note.textContent = localN>0
+   ? `Тренажер відкрито ${localN.toLocaleString("uk-UA")} разів (на цьому пристрої).`
+   : "";
+ }
+}
+bumpCounter();
 })();
 </script>
 </body>
